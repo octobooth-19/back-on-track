@@ -2,6 +2,8 @@
 
 **Built by Daniyal Hussain ([@Jaqqen](https://github.com/Jaqqen), developer) and Ayodeji Ogunsola ([@haywhyogs](https://github.com/haywhyogs), DevOps engineer)** at GitHub Universe.
 
+**▶ Live demo:** https://octobooth-19.github.io/back-on-track/
+
 A fictional, single-screen incident war room inspired by recent aviation technology disruptions. The audience plays the incident response team: watch the outage, investigate the evidence, choose a recovery path, and see how GitHub workflows help prevent and recover from incidents. All GitHub events are **simulated**; there is no backend, authentication or external API.
 
 Open `index.html` directly in a browser. It uses plain HTML, CSS and JavaScript only (no build, no packages).
