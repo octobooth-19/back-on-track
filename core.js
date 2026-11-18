@@ -266,9 +266,9 @@
   /* ---------- rendering ---------- */
   function statusFor() {
     const { stage, severity } = BOT.state;
-    if (stage === 'resolved') return ['ok', 'RESOLVED \u00b7 BACK ON TRACK'];
+    if (stage === 'resolved') return ['ok', 'RESOLVED'];
     if (stage === 'normal') return ['ok', 'ALL SYSTEMS NORMAL'];
-    if (stage === 'recovering' && severity < .55) return ['warn', 'RECOVERING \u00b7 STABILISING'];
+    if (stage === 'recovering' && severity < .55) return ['warn', 'RECOVERING'];
     if (severity >= .55) return ['crit', 'SEV-1 \u00b7 MAJOR OUTAGE'];
     if (severity >= .12) return ['warn', 'DEGRADED SERVICE'];
     return ['ok', 'ALL SYSTEMS NORMAL'];
