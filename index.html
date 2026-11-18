@@ -3,11 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#060a12">
+  <link rel="icon" href="data:,">
   <title>BACK ON TRACK — Airline Outage Simulator (fictional)</title>
   <link rel="stylesheet" href="base.css">
   <link rel="stylesheet" href="map.css">
   <link rel="stylesheet" href="investigate.css">
   <link rel="stylesheet" href="github.css">
+  <link rel="stylesheet" href="story.css">
   <link rel="stylesheet" href="core.css">
 </head>
 <body data-stage="normal" data-level="ok">
@@ -23,19 +26,12 @@
     <div id="status-indicator" data-level="ok" role="status"><span class="dot"></span><span id="status-text">ALL SYSTEMS NORMAL</span></div>
     <div class="controls">
       <button id="btn-start" class="btn primary" type="button">START INCIDENT</button>
-      <button id="btn-reset" class="btn" type="button">RESET SIMULATION</button>
+      <button id="btn-engineer" class="btn" type="button" aria-controls="eng-drawer" aria-expanded="false">ENGINEER<span class="long"> VIEW</span></button>
+      <button id="btn-reset" class="btn" type="button">RESET<span class="long"> SIMULATION</span></button>
     </div>
   </header>
 
   <main id="war-room">
-    <aside id="col-left">
-      <section id="panel-health" class="panel" aria-label="System health"></section>
-      <section id="panel-timeline" class="panel" aria-label="Incident timeline">
-        <div class="panel-head"><h2 class="panel-title">Incident timeline</h2><span class="sim-tag">SIMULATED</span></div>
-        <ol id="timeline"></ol>
-      </section>
-    </aside>
-
     <section id="col-center">
       <section id="panel-map" class="panel" aria-label="Flight operations map"></section>
       <section id="panel-stage" class="panel" aria-live="polite">
@@ -48,10 +44,31 @@
       </section>
     </section>
 
-    <aside id="col-right">
-      <section id="panel-github" class="panel" aria-label="GitHub workflow and security"></section>
+    <aside id="col-story">
+      <section id="panel-story" class="panel" aria-label="The incident story in plain words"></section>
     </aside>
   </main>
+
+  <div id="eng-scrim" hidden></div>
+  <aside id="eng-drawer" role="dialog" aria-modal="true" aria-labelledby="eng-title" inert>
+    <header class="eng-head">
+      <div><h2 id="eng-title">Engineer view</h2><p>Technical detail behind the story. All events are simulated.</p></div>
+      <button id="btn-eng-close" class="btn" type="button" aria-label="Close engineer view">CLOSE ✕</button>
+    </header>
+    <div class="eng-tabs" role="tablist" aria-label="Engineer panels">
+      <button class="eng-tab" type="button" role="tab" data-pane="github" aria-selected="true">GitHub workflow</button>
+      <button class="eng-tab" type="button" role="tab" data-pane="health" aria-selected="false">System health</button>
+      <button class="eng-tab" type="button" role="tab" data-pane="timeline" aria-selected="false">Timeline</button>
+    </div>
+    <div class="eng-body">
+      <section id="panel-github" class="panel eng-pane" data-pane="github" role="tabpanel" aria-label="GitHub workflow and security"></section>
+      <section id="panel-health" class="panel eng-pane" data-pane="health" role="tabpanel" aria-label="System health" hidden></section>
+      <section id="panel-timeline" class="panel eng-pane" data-pane="timeline" role="tabpanel" aria-label="Incident timeline" hidden>
+        <div class="panel-head"><h2 class="panel-title">Incident timeline</h2><span class="sim-tag">SIMULATED</span></div>
+        <ol id="timeline"></ol>
+      </section>
+    </div>
+  </aside>
 
   <div id="toasts" aria-live="assertive"></div>
 
@@ -60,6 +77,7 @@
   <script src="map.js"></script>
   <script src="investigate.js"></script>
   <script src="github.js"></script>
+  <script src="story.js"></script>
   <script src="core.js"></script>
 </body>
 </html>

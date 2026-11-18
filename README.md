@@ -8,16 +8,23 @@ A fictional, single-screen incident war room inspired by recent aviation technol
 
 Open `index.html` directly in a browser. It uses plain HTML, CSS and JavaScript only (no build, no packages).
 
+## Two views: audience and engineers
+
+- **Audience view (main screen):** the flight map, the current stage and **The incident story** in plain words: *What broke*, *How we fix it* and *How to stop it happening again*. It is built **phone-first**: under 1100 px wide, the page becomes one scrolling column, the action button stays at the bottom, and the page follows each stage automatically.
+- **Engineer view (`ENGINEER` button, top right):** a side drawer with three tabs: **GitHub** (simulated PR, checks, revert and guardrails), **System health** (services and traffic) and **As it happened** (the timestamped timeline). Close it with `CLOSE`, `Esc` or a tap outside.
+- **Approve step:** during recovery, the fix waits at a protected-environment gate. Press **APPROVE THE FIX** (or it auto-approves after 6 s) before it goes live.
+
 ## Architecture contract (for the people and agents building the modules)
 
-Classic `<script>` files only (works on `file://`). Load order: `facts.js`, `bus.js`, `map.js`, `investigate.js`, `github.js`, `core.js`.
+Classic `<script>` files only (works on `file://`). Load order: `facts.js`, `bus.js`, `map.js`, `investigate.js`, `github.js`, `story.js`, `core.js`.
 
 | Owner | Files | Mount point(s) in `index.html` |
 | --- | --- | --- |
 | Map | `map.js`, `map.css` | `#panel-map` |
 | Investigate | `investigate.js`, `investigate.css` | `#panel-health`, `#panel-investigate` |
-| GitHub | `github.js`, `github.css` | `#panel-github` |
-| Core | `core.js`, `core.css`, `index.html`, `base.css`, `bus.js`, `facts.js` | topbar, timeline, intro/outage/decision/recovering/resolved views, toasts |
+| GitHub | `github.js`, `github.css` | `#panel-github` (inside the engineer drawer) |
+| Story | `story.js`, `story.css` | `#panel-story` |
+| Core | `core.js`, `core.css`, `index.html`, `base.css`, `bus.js`, `facts.js` | topbar, engineer drawer, timeline, intro/outage/decision/recovering/resolved views, toasts |
 
 Each module wraps itself in an IIFE, renders into its mount point(s) only, and never edits files it does not own.
 
@@ -49,6 +56,8 @@ Fictional story facts live in `window.BOT_FACTS` (`facts.js`). Use them; do not 
 | `decision` | core | `{ choice: 'rollback'\|'scale'\|'investigate' }` | audience chose a recovery option |
 | `outcome` | core | `{ choice, result: 'success'\|'partial'\|'worse' }` | result of a decision (`partial`: scale briefly helps then fails; `worse`: more investigation costs time) |
 | `rollback:start` | core | none | rollback chosen: GitHub panel runs the revert PR pipeline |
+| `rollback:progress` | **github** | `{ step: 'opening'\|'checks'\|'gate'\|'deploying'\|'deployed', done, ms, auto }` | revert pipeline progress; core drives the recovery step track and shows APPROVE THE FIX at `gate` |
+| `rollback:approve` | core | none | lead approved the gate early (otherwise github auto-approves after 6 s) |
 | `rollback:deployed` | **github** | none | revert PR deployed; core then starts stabilising services (core falls back after ~22 s) |
 | `guardrails:replay` | core | none | resolved screen asked to replay how GitHub guardrails would have caught PR #4821 |
 | `resolved` | core | none | incident resolved |
@@ -60,4 +69,4 @@ Stage flow: `normal` → START → `outage` (~16 s of escalation) → `investiga
 `decision` choices: **rollback** (correct) → `rollback:start` → `rollback:deployed` → recover; **scale** (partial: improves briefly, then the retry storm swallows the capacity) → back to `decision`; **investigate** (worse: costs time, reveals any remaining clues) → back to `decision`.
 
 ### Design rules
-Dark cinematic command centre. CSS variables in `base.css`: `--ok` green, `--warn` amber, `--crit` red, `--accent` blue, `--gh-purple`, `--mono`. `core.js` sets `--sev` (0..1) on `:root` and `data-stage` / `data-level` on `<body>` so CSS can react. Target 1440×810 first; stay usable at 1100×680. Minimal text, strong hierarchy, smooth animation, `prefers-reduced-motion` respected. Everything on screen must be functional.
+Dark cinematic command centre. CSS variables in `base.css`: `--ok` green, `--warn` amber, `--crit` red, `--accent` blue, `--gh-purple`, `--mono`. `core.js` sets `--sev` (0..1) on `:root` and `data-stage` / `data-level` on `<body>` so CSS can react. Tested at 1440×810, 1100×700, 768×1024 and 390×844 (phone). Minimal text, strong hierarchy, smooth animation, `prefers-reduced-motion` respected. Everything on screen must be functional.

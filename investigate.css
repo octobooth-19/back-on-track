@@ -257,3 +257,21 @@
   .bi-card { padding: 8px 8px 7px; }
   .bi-title span { display: none; }
 }
+
+/* Phones and tablets: evidence cards stack and grow with their clues (the page scrolls instead). */
+@media (max-width: 1099px) {
+  .bi-wrap { position: static; padding: 12px 10px; }
+  .bi-head { flex-wrap: wrap; }
+  .bi-banner { margin-left: 0; white-space: normal; }
+  .bi-cards { grid-template-columns: 1fr; }
+  .bi-card { padding: 11px 11px 10px; }
+  .bi-card:hover { transform: none; }
+  .bi-empty { padding: 14px 0; }
+  .bi-clues { flex: none; overflow: visible; }
+  .bi-clue-head { padding: 8px 8px; }
+  .bi-clue-t { white-space: normal; font-size: 11.5px; }
+  .bi-clue-pad { font-size: 11.5px; }
+  .bi-reveal { padding: 10px 8px; font-size: 11.5px; }
+  #panel-stage:has(#btn-decide:not([hidden])) .bi-wrap { padding-bottom: 12px; }
+  #panel-stage:has(#btn-decide:not([hidden])) .bi-card:last-child { margin-bottom: 0; }
+}

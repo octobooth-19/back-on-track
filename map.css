@@ -113,6 +113,17 @@
   .bm-net-label { display: none; }
   .bm-kpi-label { font-size: 8px; letter-spacing: .11em; }
 }
+@container (max-width: 480px) {
+  .bm-head { padding: 10px 12px 14px; }
+  .bm-head .panel-title { font-size: 9px; letter-spacing: .1em; }
+  .bm-kpis { left: 6px; right: 6px; bottom: 6px; gap: 5px; }
+  .bm-kpi { padding: 5px 7px 6px 9px; border-radius: 8px; }
+  .bm-kpi-label { font-size: 7px; letter-spacing: .06em; overflow: hidden; text-overflow: ellipsis; }
+  .bm-kpi-val { font-size: 17px; }
+  .bm-kpi-of, .bm-kpi-unit { font-size: 9px; }
+  .bm-spark { height: 10px; }
+  .bm-pips, .bm-q { margin-top: 4px; height: 6px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .bm-scan::after, .bm-live, .bm-net-dot, .bm-q-fill::after { animation: none !important; }

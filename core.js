@@ -17,6 +17,9 @@
   const SOURCE_LABELS = { ops: 'OPS', monitoring: 'MON', github: 'GITHUB', security: 'SEC' };
   const CLOSING = 'An outage isn\u2019t always caused by a cyberattack. Sometimes a seemingly small infrastructure change can affect thousands of people. What matters is how quickly teams can detect, investigate, recover and prevent it from happening again. That\u2019s where GitHub\u2019s development and security workflows become critical.';
 
+  const RB_STEPS = ['opening', 'checks', 'gate', 'deploying', 'deployed'];
+  const narrow = window.matchMedia('(max-width: 1099px)');
+
   const timers = new Set();
   const svcLag = Object.fromEntries(Object.keys(SERVICE_DYNAMICS).map(key => [key, 0]));
   let dyn;
@@ -26,6 +29,7 @@
     outageT: 0, paxF: 0, peakDelayed: 0, startMinute: 3, resolvedMinute: null,
     busy: false, recoveryStarted: false, sevAtRecovery: 1, rootAnnounced: false,
     scaleTried: false, investigateTried: false, note: '', fallback: null,
+    rb: { step: '', checks: 0, gateAt: 0, gateMs: 0 },
   });
   const freshDynamics = () => ({ sev: 0, traffic: 0, rate: 2, trafficRate: 2 });
   dyn = freshDynamics();
@@ -307,10 +311,9 @@
     }
     if (stage === 'recovering') {
       const waiting = !rt.recoveryStarted;
-      $('rec-title').textContent = waiting ? 'ROLLBACK IN PROGRESS' : 'SERVICES STABILISING';
-      $('rec-text').textContent = waiting
-        ? `Watch the GitHub panel: revert PR #${BOT.facts.rollback.pr}, checks, approval, then deploy.`
-        : 'Traffic is normalising. Flights are returning to green.';
+      $('rec-title').textContent = waiting ? 'UNDOING THE CHANGE' : 'SERVICES STABILISING';
+      $('rec-text').textContent = recoveryText();
+      renderRecoverySteps();
       $('rec-bar').style.width = `${metrics.recoveryProgress * 100}%`;
       $('rec-queue').textContent = fmt(metrics.queueLength);
       $('rec-flights').textContent = `${metrics.flightsDelayed} / ${metrics.flightsTotal}`;
@@ -319,6 +322,73 @@
     $('btn-decide').hidden = !ready;
     $('btn-decide').classList.toggle('hot', BOT.state.rootCause);
     $('btn-skip').hidden = stage !== 'outage' || rt.outageT < 6;
+  }
+
+  function recoveryText() {
+    if (rt.recoveryStarted) return 'The safety limit is back on. Traffic is calming and flights are turning green.';
+    const { step, checks } = rt.rb;
+    if (step === 'checks') return `Automatic safety checks are testing the fix before it ships (${checks} of 4 passed).`;
+    if (step === 'gate') return 'Production is protected: a lead must approve before anything goes live.';
+    if (step === 'deploying' || step === 'deployed') return 'Approved. The fix is going live now.';
+    return 'Undoing the change that switched off the gateway’s safety limit.';
+  }
+
+  function renderRecoverySteps() {
+    const track = $('rec-steps');
+    if (!track) return;
+    const { step, checks, gateAt, gateMs } = rt.rb;
+    const at = rt.recoveryStarted ? RB_STEPS.length - 1 : Math.max(0, RB_STEPS.indexOf(step));
+    track.querySelectorAll('li').forEach((item, index) => {
+      item.dataset.s = index < at ? 'done' : index === at ? 'run' : 'todo';
+    });
+    const count = $('rec-checks');
+    if (count) count.textContent = at > 1 ? '4/4' : step === 'checks' ? `${checks}/4` : '';
+    const approve = $('btn-approve');
+    const gate = step === 'gate' && !rt.recoveryStarted;
+    approve.hidden = !gate;
+    $('rec-auto').textContent = gate ? `or auto-approve in ${Math.max(0, Math.ceil((gateMs - (performance.now() - gateAt)) / 1000))}s` : '';
+  }
+
+  function onRollbackProgress({ step, done, ms } = {}) {
+    if (!RB_STEPS.includes(step)) return;
+    rt.rb.step = step;
+    if (step === 'checks') rt.rb.checks = (done || 0);
+    if (step === 'gate') { rt.rb.checks = 4; rt.rb.gateAt = performance.now(); rt.rb.gateMs = ms || 6000; }
+    if (BOT.state.stage === 'recovering') renderRecoverySteps();
+  }
+
+  /* ---------- engineer drawer ---------- */
+  let drawerReturn = null;
+  function setDrawer(open) {
+    const drawer = $('eng-drawer');
+    if (drawer.classList.contains('open') === open) return;
+    drawer.classList.toggle('open', open);
+    drawer.inert = !open;
+    $('eng-scrim').hidden = !open;
+    $('btn-engineer').setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('eng-open', open);
+    if (open) {
+      drawerReturn = document.activeElement;
+      $('btn-eng-close').focus({ preventScroll: true });
+    } else if (drawerReturn && document.contains(drawerReturn)) {
+      drawerReturn.focus({ preventScroll: true });
+    }
+  }
+  function selectPane(name) {
+    document.querySelectorAll('.eng-tab').forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.pane === name)));
+    document.querySelectorAll('.eng-pane').forEach(pane => { pane.hidden = pane.dataset.pane !== name; });
+  }
+
+  /* On phones the page scrolls: keep the panel that needs the audience's attention in view. */
+  function followStage({ stage }) {
+    if (!narrow.matches) return;
+    if (stage === 'outage') { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (!['investigate', 'decision', 'recovering', 'resolved'].includes(stage)) return;
+    requestAnimationFrame(() => {
+      const box = $('panel-stage').getBoundingClientRect();
+      const top = $('topbar').getBoundingClientRect().bottom;
+      if (box.top < top || box.top > window.innerHeight * .55) $('panel-stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   function renderDecision() {
@@ -417,6 +487,17 @@
         <p class="eyebrow ok">STAGE 3 \u00b7 RECOVER</p>
         <h2 id="rec-title">ROLLBACK IN PROGRESS</h2>
         <p id="rec-text" class="lede"></p>
+        <ol id="rec-steps" class="rec-steps" aria-label="Recovery steps">
+          <li data-s="todo"><i aria-hidden="true"></i><span>Undo the change</span></li>
+          <li data-s="todo"><i aria-hidden="true"></i><span>Safety checks <em id="rec-checks" class="mono"></em></span></li>
+          <li data-s="todo"><i aria-hidden="true"></i><span>Lead approves</span></li>
+          <li data-s="todo"><i aria-hidden="true"></i><span>Fix goes live</span></li>
+          <li data-s="todo"><i aria-hidden="true"></i><span>Flights recover</span></li>
+        </ol>
+        <div id="rec-approve-wrap" class="rec-approve">
+          <button id="btn-approve" class="btn gh big" type="button" hidden>APPROVE THE FIX</button>
+          <span id="rec-auto" class="fine mono"></span>
+        </div>
         <div class="o-stats two">
           <div><span id="rec-queue" class="big mono">0</span><label>in check-in queues</label></div>
           <div><span id="rec-flights" class="big mono">0 / 24</span><label>flights delayed</label></div>
@@ -434,7 +515,7 @@
         </div>
         <blockquote class="closing">${CLOSING}</blockquote>
         <div class="row">
-          <button id="btn-replay" class="btn gh" type="button">REPLAY WITH GITHUB GUARDRAILS</button>
+          <button id="btn-replay" class="btn gh" type="button">SHOW HOW TO PREVENT IT</button>
           <button id="btn-again" class="btn" type="button">RUN IT AGAIN</button>
         </div>
       </div>`;
@@ -470,6 +551,14 @@
     $('btn-decide').addEventListener('click', openDecision);
     $('btn-replay').addEventListener('click', () => BOT.emit('guardrails:replay'));
     $('btn-again').addEventListener('click', () => { reset(); later(start, 400); });
+    $('btn-approve').addEventListener('click', () => BOT.emit('rollback:approve'));
+    $('btn-engineer').addEventListener('click', () => setDrawer(!$('eng-drawer').classList.contains('open')));
+    $('btn-eng-close').addEventListener('click', () => setDrawer(false));
+    $('eng-scrim').addEventListener('click', () => setDrawer(false));
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') setDrawer(false); });
+    document.querySelectorAll('.eng-tab').forEach(tab => tab.addEventListener('click', () => selectPane(tab.dataset.pane)));
+    BOT.on('rollback:progress', onRollbackProgress);
+    BOT.on('stage', followStage);
     $('panel-decision').addEventListener('click', event => {
       const button = event.target.closest('.decision');
       if (button) decide(button.dataset.choice);

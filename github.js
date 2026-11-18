@@ -54,6 +54,8 @@
   function every(g, fn, ms) { const id = setInterval(fn, ms); groups[g].add(id); return id; }
   function clearGroup(g) { groups[g].forEach(stop); groups[g].clear(); }
   function clearAll() { Object.keys(groups).forEach(clearGroup); }
+  // Plain-language progress for the audience view (core.js / story.js).
+  const progress = (step, extra) => BOT.emit('rollback:progress', Object.assign({ step }, extra));
 
   /* ---------- DOM ---------- */
   root.innerHTML = `
@@ -334,6 +336,7 @@
     put(v, 0, 'running', 'Creating revert-4821\u2026');
     showView('rollback', true);
     BOT.log(`Revert PR #${RB.pr} opening (${RB.branch}, ${RB.commit})`, 'info', 'github');
+    progress('opening');
 
     const steps = [
       [1000, () => {
@@ -342,21 +345,25 @@
         put(v, 1, 'running', 'Running unit tests\u2026');
         setCap(v, 'Checks running', `Revert PR #${RB.pr} is being verified.`);
         BOT.log(`Revert PR #${RB.pr} opened (${RB.branch}, ${RB.commit})`, 'info', 'github');
+        progress('checks', { done: 0 });
       }],
       [1400, () => {
         put(v, 1, 'passed', 'Unit tests passed');
         put(v, 2, 'running', 'CodeQL analysing\u2026');
         pulseCard('code');
+        progress('checks', { done: 1 });
       }],
       [1200, () => {
         put(v, 2, 'passed', 'No code alerts');
         put(v, 3, 'running', 'Scanning for secrets\u2026');
         pulseCard('secret');
+        progress('checks', { done: 2 });
       }],
       [1200, () => {
         put(v, 3, 'passed', 'No secrets detected');
         put(v, 4, 'running', 'Reviewing dependency changes\u2026');
         pulseCard('dep');
+        progress('checks', { done: 3 });
       }],
       [1200, () => {
         put(v, 4, 'passed', 'No vulnerable packages');
@@ -386,6 +393,7 @@
     void approveBtn.offsetWidth;
     approveBtn.classList.add('run');
     approveBtn.disabled = false;
+    progress('gate', { ms: GATE_MS });
   }
 
   function approveGate(auto) {
@@ -400,6 +408,7 @@
     setEnvCard('Approval required', 'ok');
     BOT.log(`Production deployment approved by ${RB.approver}`, 'ok', 'github');
     if (auto) BOT.toast('on-call lead approved', 'ok', 'github');
+    progress('deploying', { auto: !!auto });
     deploy(v);
   }
 
@@ -426,7 +435,7 @@
     v.audit = `opened ${v.auditOpened || '\u2013'} \u00b7 approved ${v.auditApproved || '\u2013'} \u00b7 deployed ${BOT.clock()}`;
     paint();
     BOT.log(`Rollback PR #${RB.pr} deployed (deploy #${RB.deploy})`, 'ok', 'github');
-    if (!deployedEmitted) { deployedEmitted = true; BOT.emit('rollback:deployed'); }
+    if (!deployedEmitted) { deployedEmitted = true; progress('deployed'); BOT.emit('rollback:deployed'); }
   }
 
   /* ---------- guardrails replay ---------- */
@@ -441,11 +450,13 @@
     put(v, 0, 'running', 'Opening pull request\u2026');
     showView('replay', true);
     BOT.log(`Replay: PR #${CH.pr} re-run with guardrails (simulated)`, 'info', 'github');
+    BOT.emit('guardrails:start');
 
     const timeline = [
       [700, () => {
         put(v, 0, 'passed', `Opened by ${CH.author}`, [chip('gh', 'CODEOWNERS \u2192 platform-sre', GR[0])]);
         setCap(v, 'Layer 1 \u00b7 CODEOWNERS', GR[0]);
+        BOT.emit('guardrails:layer', { i: 0 });
       }],
       [900, () => put(v, 1, 'running', 'Running unit tests\u2026')],
       [600, () => { put(v, 1, 'passed', 'Unit tests passed'); put(v, 2, 'running', 'CodeQL + policy check\u2026'); pulseCard('code'); }],
@@ -455,6 +466,7 @@
         setCap(v, 'Layer 2 \u00b7 Policy check', GR[1]);
         flow.classList.remove('shake'); void flow.offsetWidth; flow.classList.add('shake');
         BOT.log(`Replay: policy check fails PR #${CH.pr}: "rate limiting must stay enabled"`, 'warn', 'github');
+        BOT.emit('guardrails:layer', { i: 1 });
       }],
       [1300, () => {
         put(v, 2, 'warning', 'Waived for the what-if', [], { lab: 'WAIVED' });
@@ -469,6 +481,7 @@
         setCap(v, 'Layer 3 \u00b7 Protected environment', GR[2]);
         setEnvCard('Holding production', 'warn');
         pulseCard('env');
+        BOT.emit('guardrails:layer', { i: 2 });
       }],
       [1000, () => {
         put(v, 5, 'passed', 'Released to 5% canary', [chip('ok', 'approved')]);
@@ -481,6 +494,7 @@
         clearGroup('ca');
         put(v, 6, 'failed', 'Alerts tripped \u00b7 auto-rollback', [chip('gh', 'canary 5%', GR[3])], { lab: 'ROLLED BACK', bar: 48, tone: 'red' });
         setCap(v, 'Layer 4 \u00b7 Canary 5%', GR[3]);
+        BOT.emit('guardrails:layer', { i: 3 });
       }],
       [900, () => {
         v.prevented = true;
@@ -488,6 +502,7 @@
         replayRunning = false;
         paint();
         BOT.log(`Outage prevented: guardrails would have stopped PR #${CH.pr}. 0 passengers impacted (simulated)`, 'ok', 'github');
+        BOT.emit('guardrails:done');
       }],
     ];
     let at = 0;
@@ -529,6 +544,7 @@
   BOT.on('reset', resetAll);
   BOT.on('rollback:start', () => { setEnvCard('Approval required', 'ok'); startRollback(); });
   BOT.on('guardrails:replay', startReplay);
+  BOT.on('rollback:approve', () => approveGate(false));
   BOT.on('clue', d => {
     if (!d || d.evidence !== 'github') return;
     const map = { 1: [0, 1, 2], 2: [2, 4, 5], 3: [5, 6] };
