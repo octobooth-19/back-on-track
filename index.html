@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BACK ON TRACK — Airline Outage Simulator (fictional)</title>
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="map.css">
+  <link rel="stylesheet" href="investigate.css">
+  <link rel="stylesheet" href="github.css">
+  <link rel="stylesheet" href="core.css">
+</head>
+<body data-stage="normal" data-level="ok">
+  <header id="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">BACK ON TRACK</span></div>
+    <span class="sim-badge" title="Fictional simulation inspired by real events. Not an actual airline incident.">FICTIONAL SIMULATION · inspired by real events</span>
+    <ol id="stage-stepper" aria-label="Simulation stages">
+      <li data-step="outage"><b>1</b> THE OUTAGE</li>
+      <li data-step="investigate"><b>2</b> INVESTIGATE</li>
+      <li data-step="recover"><b>3</b> RECOVER</li>
+    </ol>
+    <div id="sim-clock" class="mono" aria-label="Simulated time">14:00</div>
+    <div id="status-indicator" data-level="ok" role="status"><span class="dot"></span><span id="status-text">ALL SYSTEMS NORMAL</span></div>
+    <div class="controls">
+      <button id="btn-start" class="btn primary" type="button">START INCIDENT</button>
+      <button id="btn-reset" class="btn" type="button">RESET SIMULATION</button>
+    </div>
+  </header>
+
+  <main id="war-room">
+    <aside id="col-left">
+      <section id="panel-health" class="panel" aria-label="System health"></section>
+      <section id="panel-timeline" class="panel" aria-label="Incident timeline">
+        <div class="panel-head"><h2 class="panel-title">Incident timeline</h2><span class="sim-tag">SIMULATED</span></div>
+        <ol id="timeline"></ol>
+      </section>
+    </aside>
+
+    <section id="col-center">
+      <section id="panel-map" class="panel" aria-label="Flight operations map"></section>
+      <section id="panel-stage" class="panel" aria-live="polite">
+        <div id="stage-intro" class="stage-view"></div>
+        <div id="stage-outage" class="stage-view"></div>
+        <div id="panel-investigate" class="stage-view"></div>
+        <div id="panel-decision" class="stage-view"></div>
+        <div id="stage-recovering" class="stage-view"></div>
+        <div id="stage-resolved" class="stage-view"></div>
+      </section>
+    </section>
+
+    <aside id="col-right">
+      <section id="panel-github" class="panel" aria-label="GitHub workflow and security"></section>
+    </aside>
+  </main>
+
+  <div id="toasts" aria-live="assertive"></div>
+
+  <script src="facts.js"></script>
+  <script src="bus.js"></script>
+  <script src="map.js"></script>
+  <script src="investigate.js"></script>
+  <script src="github.js"></script>
+  <script src="core.js"></script>
+</body>
+</html>
